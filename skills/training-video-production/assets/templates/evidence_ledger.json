@@ -1,0 +1,9 @@
+{
+  "policy_id": "",
+  "policy_title": "",
+  "source_sha256": "",
+  "source_structure": "extraction/policy_structure.json",
+  "decision_references": [],
+  "expected_substantive_paragraphs": [],
+  "rules": []
+}

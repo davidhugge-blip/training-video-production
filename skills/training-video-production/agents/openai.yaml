@@ -1,0 +1,4 @@
+interface:
+  display_name: "培训视频制作"
+  short_description: "将企业制度文件转化为可追溯、可审批、可重制的完整培训视频"
+  default_prompt: "使用 $training-video-production 将这份制度文件制作成可追溯的培训PPT、逐页讲稿、配音字幕和完整视频。"
