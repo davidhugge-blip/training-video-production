@@ -110,23 +110,25 @@ python scripts/validate_policy_project.py PROJECT_DIR --stage deck
 
 1. TTS 前单独说明服务商、拟发送文本范围和信息外发风险。
 2. 在线 TTS 必须取得针对当前材料的明确外发授权；此前样音或其他制度的授权不可复用。没有授权时使用本地离线方案。
-3. 试制可使用 Edge TTS；生产优先评估本地 CosyVoice。F5-TTS 常见中英模型的非商用许可不进入企业生产主链路。
-4. 使用逐页讲稿生成逐页音频和逐页 SRT；字幕必须与讲稿逐字一致。
-5. 使用 FFmpeg 合成 1920×1080、30fps、H.264 + AAC 视频。字幕 44px、单行优先、置于底部 90px 字幕带内。
-6. 在线 Edge TTS 获授权后运行：
+3. 默认成片链路固定为：技能内置 Edge 词级时间轴生成器 → 逐页 MP3/SRT → 44px 单行 ASS → FFmpeg 逐页片段及完整视频 → 全量媒体 QA。不得静默切换 macOS `say`、按字符估算字幕、Swift/AVFoundation 或其他合成器。
+4. Edge TTS 使用同一音频流的 `WordBoundary` 事件生成逐页 SRT；字幕必须与批准讲稿逐字一致。禁止按整页字符比例估算时间轴。
+5. 使用 FFmpeg 合成 1920×1080、30fps、H.264 + AAC 视频。字幕固定 44px、单行、每条不超过20个显示字符，置于底部90px字幕带内；合成失败必须停止，不得自动降级工具。
+6. 默认音色为`zh-CN-XiaoxiaoNeural`、语速`-5%`。在线 Edge TTS 获授权后运行：
 
 ```bash
-python scripts/media_pipeline.py PROJECT_DIR --provider edge --authorize-online-tts
-python scripts/qa_media.py PROJECT_DIR
+python scripts/media_pipeline.py PROJECT_DIR --provider edge --authorize-online-tts --resume --output-tag V2
+python scripts/qa_media.py PROJECT_DIR --output-tag V2
 ```
 
 7. 仅重做画面或字幕时复用已批准音频：
 
 ```bash
-python scripts/media_pipeline.py PROJECT_DIR --skip-tts
+python scripts/media_pipeline.py PROJECT_DIR --skip-tts --resume --output-tag V2
 ```
 
-完成标准：媒体技术 QA 通过，字幕不遮挡正文，音画顺序正确，无超过 2 秒异常静音。
+8. 正式媒体 QA 必须执行完整模式，不得以`--fast`结果作为交付依据；必须覆盖75/75或实际全部页面的画面对照、字幕实际像素宽度、讲稿逐字一致、词级时间轴、完整解码、响度、真峰值和超过2秒异常静音。
+
+完成标准：完整媒体技术 QA 通过，字幕无重叠或溢出、音画顺序正确、配音与字幕来自同一词级时间轴、无超过2秒异常静音。
 
 ### 阶段 9：最终审批与发布
 

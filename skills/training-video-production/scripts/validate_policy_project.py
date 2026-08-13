@@ -185,6 +185,19 @@ def speech_slides(path: Path, errors: list[str]) -> list[int]:
     return numbers
 
 
+def preferred_versioned_json(project: Path, stem: str) -> Path | None:
+    """Return the locked V2 artifact when present, then a tagged or legacy file."""
+    qa_dir = project / "qa"
+    v2 = qa_dir / f"{stem}_V2.json"
+    if v2.is_file():
+        return v2
+    tagged = sorted(qa_dir.glob(f"{stem}_*.json"))
+    if tagged:
+        return tagged[-1]
+    legacy = qa_dir / f"{stem}.json"
+    return legacy if legacy.is_file() else None
+
+
 def validate_deck(project: Path, outline: dict, errors: list[str]) -> int:
     slide_count = len(outline.get("slides", []))
     numbers = speech_slides(project / "speech.md", errors)
@@ -198,8 +211,12 @@ def validate_deck(project: Path, outline: dict, errors: list[str]) -> int:
         errors.append("no PPTX found in project root")
     if not (project / "deck_spec.json").is_file():
         errors.append("missing file: deck_spec.json")
-    if not (project / "逐页来源映射.md").is_file():
-        errors.append("missing file: 逐页来源映射.md")
+    source_maps = (
+        project / "逐页来源映射.md",
+        project / "speech_source_map.json",
+    )
+    if not any(path.is_file() for path in source_maps):
+        errors.append("missing slide source map: 逐页来源映射.md or speech_source_map.json")
     return slide_count
 
 
@@ -213,10 +230,16 @@ def validate_media(project: Path, slide_count: int, errors: list[str]) -> None:
         errors.append(f"per-slide subtitle count {len(subtitles)} != slide count {slide_count}")
     if not videos:
         errors.append("no final MP4 found")
-    if not (project / "qa/media_manifest.json").is_file():
-        errors.append("missing file: qa/media_manifest.json")
-    if not (project / "qa/media_qa.json").is_file():
-        errors.append("missing file: qa/media_qa.json")
+    media_manifest = preferred_versioned_json(project, "media_manifest")
+    if media_manifest is None:
+        errors.append("missing file: qa/media_manifest[_TAG].json")
+    media_qa = preferred_versioned_json(project, "media_qa")
+    if media_qa is None:
+        errors.append("missing file: qa/media_qa[_TAG].json")
+    else:
+        qa_result = load_json(media_qa, errors)
+        if qa_result.get("status") != "pass":
+            errors.append(f"media QA is not pass: {media_qa.name}")
 
 
 def main() -> int:

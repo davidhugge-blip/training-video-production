@@ -9,13 +9,12 @@
   → 制度证据台账
   → 规则覆盖矩阵
   → codex-ppt 图片式 PPT 与逐页讲稿
-  → PPT Master 逐页讲稿、逐页配音、逐页字幕机制
-  → Edge TTS 试制或本地 CosyVoice 生产
+  → 技能内置 Edge 逐页配音和 WordBoundary 词级字幕
   → FFmpeg 逐页片段与完整视频
   → 事实、视觉、媒体、人审四层 QA
 ```
 
-PPT Master 的自由内容生成逻辑不得替代制度证据台账；只借鉴规格锁定、逐页讲稿、逐页配音、运行状态和局部重制机制。
+PPT Master 的自由内容生成逻辑不得替代制度证据台账。媒体生产脚本不得依赖项目外 PPT Master；本技能只借鉴其逐页组织和断点重制思路，并在技能内确定性实现。
 
 ## 2. 依赖策略
 
@@ -93,7 +92,9 @@ python scripts/media_pipeline.py /path/to/POLICY_ID \
   --provider edge \
   --voice zh-CN-XiaoxiaoNeural \
   --rate=-5% \
-  --authorize-online-tts
+  --authorize-online-tts \
+  --resume \
+  --output-tag V2
 ```
 
 只检查输入和环境，不生成媒体：
@@ -105,26 +106,24 @@ python scripts/media_pipeline.py /path/to/POLICY_ID --check-only
 复用现有逐页音频和 SRT，重做字幕或画面：
 
 ```bash
-python scripts/media_pipeline.py /path/to/POLICY_ID --skip-tts
+python scripts/media_pipeline.py /path/to/POLICY_ID --skip-tts --resume --output-tag V2
 ```
 
 脚本默认规格：
 
 - `1920×1080`、30fps、H.264、AAC。
 - 字幕带 `y=990`、高 90px。
-- 字幕 `Heiti SC`、44px、单行、最多 24 字符。
+- 字幕 `Heiti SC`、44px、单行、最多 20 个显示字符；QA还必须按真实字体测量像素宽度。
 - Edge 默认声音 `zh-CN-XiaoxiaoNeural`、语速 `-5%`。
 - 音频目标 -16 LUFS，片尾呼吸时间 0.55 秒。
 
-## 8. PPT Master 兼容
+## 8. 工具锁定与失败策略
 
-媒体脚本会按以下顺序查找 `notes_to_audio.py`：
-
-1. `--notes-to-audio` 显式路径。
-2. 项目根目录 `third_party/ppt-master/skills/ppt-master/scripts/notes_to_audio.py`。
-3. 环境变量 `PPT_MASTER_NOTES_TO_AUDIO`。
-
-找不到时，先安装或克隆 PPT Master，再显式传入脚本路径。不要下载未知来源的同名脚本。
+- Edge配音和词级SRT由技能自带`media_pipeline.py`生成，不调用项目外`notes_to_audio.py`。
+- 视频只允许FFmpeg合成；禁止自动切换Swift/AVFoundation、PowerPoint或其他视频后端。
+- 在线服务、依赖、字体或FFmpeg不可用时直接停止；排除问题后用`--resume`续跑。
+- 单页Edge请求默认180秒超时，超时后最多重试3次；已成功页面从断点状态复用。
+- 不允许在失败时自动生成AIFF，不允许用整页字符比例估算字幕时间。
 
 ## 9. FFmpeg 查找顺序
 
@@ -137,7 +136,7 @@ python scripts/media_pipeline.py /path/to/POLICY_ID --skip-tts
 ## 10. 媒体 QA
 
 ```bash
-python scripts/qa_media.py /path/to/POLICY_ID
+python scripts/qa_media.py /path/to/POLICY_ID --output-tag V2
 ```
 
 检查项：
@@ -146,10 +145,12 @@ python scripts/qa_media.py /path/to/POLICY_ID
 - 1920×1080、30fps、H.264、AAC 48kHz。
 - 逐页音频、逐页字幕、ASS 和灯片数量相等。
 - 全程字幕与 `speech.md` 逐字一致。
-- 源字幕不超过 20 字符，显示字幕不超过 24 字符。
+- 每条字幕不超过20个显示字符，并使用真实字体文件测量单行像素宽度。
 - ASS 使用 44px 字幕。
 - 无超过 2 秒异常静音。
 - 每页视频顶部 990px 与对应灯片画面一致。
+- 逐页字幕时间来自生成该页MP3的同一Edge WordBoundary流，并覆盖到音频末段。
+- 逐页音频、字幕、ASS、视频片段的哈希与媒体清单一致。
 
 最终人工检查仍必须覆盖：术语读音、停顿、自然度、字幕是否舒适和基层员工是否听懂。
 

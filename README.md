@@ -8,8 +8,9 @@
 - 制度正文是最高事实来源，先建立制度证据台账和规则覆盖矩阵。
 - 按大纲、视觉方向、图片后端、单页样稿、全套 PPT、讲稿、配音和发布逐级审批。
 - 支持管家、工程、秩序、绿化、保洁五条线固定视觉编码。
-- 使用 16:9 满幅灯片、90px 字幕安全区和 44px 字幕标准。
-- 支持 Docling、MarkItDown、codex-ppt、PPT Master、Edge TTS、CosyVoice 和 FFmpeg 工作链路。
+- 使用 16:9 满幅灯片、90px 字幕安全区、44px单行字幕和每条不超过20个显示字符的标准。
+- V2成片链路固定为 Edge TTS 同源词级时间轴、逐页MP3/SRT、ASS字幕和FFmpeg合成；失败时停止，不静默切换本地临时工具。
+- 完整媒体QA覆盖讲稿逐字一致、词级时间轴、字幕实际像素宽度、全部页面顺序与主画面对照、完整解码、响度、真峰值和异常静音。
 - 在线 TTS 必须针对当前材料单独取得外发授权。
 - 通过规则编号定位受影响页面，支持局部重制。
 
@@ -33,6 +34,16 @@ cp -R training-video-production/skills/training-video-production ~/.codex/skills
 ```text
 $training-video-production
 ```
+
+在线配音获得当前材料专项授权后，V2媒体阶段使用：
+
+```bash
+python scripts/media_pipeline.py PROJECT_DIR --provider edge --authorize-online-tts --resume --output-tag V2
+python scripts/qa_media.py PROJECT_DIR --output-tag V2
+python scripts/validate_policy_project.py PROJECT_DIR --stage media
+```
+
+正式交付不得用`qa_media.py --fast`替代完整媒体QA。
 
 ## 仓库结构
 
