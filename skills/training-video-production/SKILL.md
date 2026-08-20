@@ -29,6 +29,11 @@ description: Create controlled, traceable Chinese policy training videos from DO
 
 ## 标准流程
 
+开始阶段先锁定课件模式：
+
+- `native_generation`：未提供既有成品PPT，或要求重新设计课件；执行完整的大纲、视觉、图片后端、样稿和全套生成门禁。
+- `existing_finished_ppt`：用户明确指定现成PPT/PPTX直接转视频；保留原页面比例、内容和视觉，以一次“既有PPT直接使用确认”替代重新设计课件的门禁。PPT格式源材料或视觉参考不得自动进入本模式。
+
 ### 阶段 1：登记与核验源文件
 
 1. 区分正式制度正文、附件、参考方案和动态项目文件。
@@ -68,13 +73,15 @@ python scripts/validate_policy_project.py PROJECT_DIR --stage outline
 ```
 
 5. 把分页大纲、课件外信息和覆盖结论交用户确认。未经明确确认，不生成正式灯片。
+6. `existing_finished_ppt`模式仍建立规则覆盖和逐页来源映射，页序默认继承既有PPT；发现缺失、重复、错序或无来源陈述时暂停确认。
 
 ### 阶段 4：确认视觉方向
 
 1. 使用“集团统一母体系 + 条线固定子识别”。
 2. 继承已确认的管家、工程、秩序、绿化、保洁视觉编码；其他条线先给 2–3 个方向确认。
 3. 先保证信息层级和可读性，再增加视觉表现。
-4. 全页背景保持 16:9 满幅；底部预留 90px 字幕安全区，安全区内不放正文、图表、页码或关键图形。
+4. `native_generation`模式全页背景保持16:9满幅；底部预留90px字幕安全区，安全区内不放正文、图表、页码或关键图形。
+5. `existing_finished_ppt`模式不重新选择视觉方向，改为确认保留现有视觉、页面比例和页序。
 
 完成标准：用户明确确认本制度的视觉方向。
 
@@ -84,17 +91,21 @@ python scripts/validate_policy_project.py PROJECT_DIR --stage outline
 
 完成标准：图片后端和外发边界获得确认。
 
+`existing_finished_ppt`模式不调用图片后端，本阶段记为“不适用”；一旦需要重做或新增页面，退出直接使用模式并恢复相应门禁。
+
 ### 阶段 6：确认单页样稿
 
 1. 选择信息密度中高、包含关键数字或流程关系的代表页。
-2. 生成一页 16:9、带字幕安全区的样稿。
+2. `native_generation`模式生成一页16:9、带字幕安全区的样稿。
 3. 同时检查视觉风格、数字准确性、基层可读性和底部安全区。
+
+`existing_finished_ppt`模式以“既有PPT直接使用确认”和实际页面渲染检查替代生成样稿；记录PPTX路径、SHA-256、页数、页面宽高比、字体/缺字检查、动画、切换、嵌入视频和音频检测结果。发现动态内容时暂停，由用户批准静态化或改走保留动态效果的专用路径；旧式`.ppt`先转换为`.pptx`并复核。
 
 完成标准：用户明确确认样稿；未经确认不生成全套。
 
 ### 阶段 7：生成并审批全套 PPT 与逐页讲稿
 
-1. 调用 `$codex-ppt`，遵守其图片式 PPT 工作流；逐页生成，保存逐页提示词、原图和运行状态。
+1. `native_generation`模式调用`$codex-ppt`，遵守其图片式PPT工作流；逐页生成，保存逐页提示词、原图和运行状态。`existing_finished_ppt`模式直接渲染已确认PPT，不重新设计或改动页面比例。
 2. 每页讲稿只解释本页已映射规则，不引入新制度要求；口语化但不改写规则含义。
 3. 将制度原文、高风险数字、灯片文字和讲稿进行交叉核验。
 4. 输出 PPTX、`speech.md`、逐页来源映射和 QA 记录。
@@ -104,31 +115,45 @@ python scripts/validate_policy_project.py PROJECT_DIR --stage outline
 python scripts/validate_policy_project.py PROJECT_DIR --stage deck
 ```
 
-完成标准：用户明确批准全套灯片与讲稿。进入视频阶段的授权不等于允许外发完整讲稿。
+完成标准：`native_generation`模式由用户明确批准生成的全套灯片与讲稿；`existing_finished_ppt`模式不重新审批视觉方案，但仍须批准既有整套页面与讲稿的内容对应关系。进入视频阶段的授权不等于允许外发完整讲稿。
 
 ### 阶段 8：逐页配音、字幕和视频合成
 
-1. TTS 前单独说明服务商、拟发送文本范围和信息外发风险。
-2. 在线 TTS 必须取得针对当前材料的明确外发授权；此前样音或其他制度的授权不可复用。没有授权时使用本地离线方案。
-3. 默认成片链路固定为：技能内置 Edge 词级时间轴生成器 → 逐页 MP3/SRT → 44px 单行 ASS → FFmpeg 逐页片段及完整视频 → 全量媒体 QA。不得静默切换 macOS `say`、按字符估算字幕、Swift/AVFoundation 或其他合成器。
-4. Edge TTS 使用同一音频流的 `WordBoundary` 事件生成逐页 SRT；字幕必须与批准讲稿逐字一致。禁止按整页字符比例估算时间轴。
-5. 使用 FFmpeg 合成 1920×1080、30fps、H.264 + AAC 视频。字幕固定 44px、单行、每条不超过20个显示字符，置于底部90px字幕带内；合成失败必须停止，不得自动降级工具。
-6. 默认音色为`zh-CN-XiaoxiaoNeural`、语速`-5%`。在线 Edge TTS 获授权后运行：
+1. TTS 前记录所选服务商、拟处理文本范围及本地或在线运行方式；只有在线分支需要说明信息外发风险。
+2. 在线 TTS 必须取得针对当前材料的明确外发授权；此前样音或其他制度的授权不可复用。
+3. 默认V4成片链路固定为：MeloTTS官方中文固定音色`ZH`（CPU、速度0.95）→ 温和压缩与两遍整体响度校准 → 同一最终WAV的MFA普通话强制对齐 → 语义优先SRT/ASS → FFmpeg逐页片段及完整视频 → 全量媒体QA。模型只允许从本地缓存加载，不启用真人声音克隆，不允许失败后回退在线服务、字符估时或其他合成器。
+4. 本地生成前必须先列出或生成官方音色试听，记录音色确认依据；自动术语门禁发现英文字母、制度编号或阿拉伯数字即停止，须先批准自然中文讲稿改写。生僻词仍须人工试听。MFA只提供同一最终WAV的真实音频时间，字幕文本必须与批准讲稿逐字一致。
+5. MeloTTS＋MFA基准五页试验已通过完整技术QA及人工自然度、语速、音量和跨页一致性复听，因此设为正式默认；每个项目仍须在`manifest.json`记录本地官方音色及确认依据。此默认不等于允许自动改写讲稿或覆盖既有正式媒体。
+6. Edge TTS保留为显式在线备选，仅在用户为当前材料单独批准外发并主动选择`--provider edge`时使用；它使用同一音频流的`WordBoundary`事件生成逐页SRT。不得由本地链路静默回退至Edge。
+7. `native_generation`模式使用1920×1080画布、44px单行字幕和页面内底部90px字幕带；`existing_finished_ppt`模式完整保留PPT渲染画面，在页面画布之外向下增加高度为页面高度8.33%的全宽字幕栏。字幕栏高度、字号、描边和垂直边距按页面高度缩放，字幕目标宽度、硬上限和水平边距按视频宽度缩放；例如1440×1080的4:3页面使用90px字幕栏、44px字幕、1125px常规目标和1200px硬上限，成片为1440×1170而不是16:9。两种模式均使用30fps、H.264 + AAC；不得裁切、拉伸或缩小既有PPT来适配固定画布。优先保持完整句子，超宽时依次按强停顿、逗号、自然语义连接词和词语边界拆分；不得孤立标点，“先、再、但、并”等连接词不得悬在字幕末尾，不得拆开制度名称、编号、金额、日期、百分比、计量单位或岗位名称。合成失败必须停止，不得自动降级工具。
+8. 默认本地链路按顺序运行（运行路径按本机环境填写）：
 
 ```bash
-python scripts/media_pipeline.py PROJECT_DIR --provider edge --authorize-online-tts --resume --output-tag V2
-python scripts/qa_media.py PROJECT_DIR --output-tag V2
+python scripts/media_pipeline.py PROJECT_DIR --list-local-voices
+python scripts/media_pipeline.py PROJECT_DIR --melo-python /path/to/melo/python --preview-local-voice --output-tag V4
+python scripts/media_pipeline.py PROJECT_DIR --melo-python /path/to/melo/python --mfa /path/to/mfa --mfa-root /path/to/mfa-root --pkuseg-home /path/to/pkuseg --confirm-local-voice ZH --voice-confirmation-basis '已批准的试听记录' --resume --output-tag V4
+python scripts/qa_media.py PROJECT_DIR --output-tag V4
+python scripts/validate_policy_project.py PROJECT_DIR --stage media --output-tag V4
 ```
 
-7. 仅重做画面或字幕时复用已批准音频：
+`existing_finished_ppt`模式必须先在`manifest.json`记录`deck_input.mode`、PPTX路径、直接使用批准和动态内容处置，再运行同一命令；媒体脚本会从实际灯片图像读取尺寸并生成外置字幕栏。
+
+Edge在线备选的默认音色为`zh-CN-XiaoxiaoNeural`、语速`-5%`。仅在当前材料外发获授权后运行：
 
 ```bash
-python scripts/media_pipeline.py PROJECT_DIR --skip-tts --resume --output-tag V2
+python scripts/media_pipeline.py PROJECT_DIR --provider edge --authorize-online-tts --resume --output-tag V4
+python scripts/qa_media.py PROJECT_DIR --output-tag V4
 ```
 
-8. 正式媒体 QA 必须执行完整模式，不得以`--fast`结果作为交付依据；必须覆盖75/75或实际全部页面的画面对照、字幕实际像素宽度、讲稿逐字一致、词级时间轴、完整解码、响度、真峰值和超过2秒异常静音。
+9. 旧Edge V2/V3项目仅重做画面或字幕时，显式选择Edge并复用已批准音频：
 
-完成标准：完整媒体技术 QA 通过，字幕无重叠或溢出、音画顺序正确、配音与字幕来自同一词级时间轴、无超过2秒异常静音。
+```bash
+python scripts/media_pipeline.py PROJECT_DIR --provider edge --skip-tts --reflow-existing-subtitles --reuse-provenance-tag V2 --resume --output-tag V4
+```
+
+10. 正式媒体QA必须执行完整模式，不得以`--fast`结果作为交付依据；必须覆盖实际全部页面的画面对照、页面比例、页面与字幕栏边界、动态分辨率、字幕实际像素宽度、语义断句、孤立标点、受保护字段、讲稿逐字一致、词级时间轴、完整解码、响度、真峰值和超过2秒异常静音。单条字幕优先显示1.2—6秒，超过约7秒继续按语义拆分；过短或停留不舒适的片段列入人工复核。本地链路还须核对术语门禁、音色确认、本地运行、禁止网络回退及逐页MFA对齐文件哈希。
+
+完成标准：完整媒体技术QA通过，字幕无重叠或溢出、音画顺序正确、配音与字幕来自同一词级时间轴、无超过2秒异常静音；既有成品PPT还须确认原页面比例和内容完整、外置字幕栏不覆盖页面。
 
 ### 阶段 9：最终审批与发布
 

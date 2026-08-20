@@ -1,4 +1,4 @@
 interface:
   display_name: "培训视频制作"
   short_description: "把企业制度制作成可追溯、音画同步、可审批和可重制的完整培训视频"
-  default_prompt: "使用 $training-video-production 将这份制度制作成可追溯的培训PPT、逐页讲稿、词级同步配音字幕和完整视频，并执行全量媒体QA。"
+  default_prompt: "使用 $training-video-production 将这份制度制作成可追溯的培训PPT、逐页讲稿、MeloTTS＋MFA本地词级同步配音字幕和完整视频，并执行全量媒体QA；若我明确提供既有成品PPT直接转视频，保留原页面比例并在页面外增加字幕栏。"
